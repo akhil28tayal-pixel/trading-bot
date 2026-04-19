@@ -207,36 +207,36 @@ class TelegramBot:
         
         elif text == '/auth':
             try:
-                # Import mobile auth handler
+                # Import fixed auth handler
                 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                 
-                # Trigger mobile authentication
-                response = """🔐 <b>Starting Mobile Authentication...</b>
+                # Trigger direct authentication
+                response = """Starting Mobile Authentication...
 
-⏳ Please wait while I set up the HTTPS tunnel...
+Please wait while I set up the authentication server...
 
 This will take about 5-10 seconds.
 
-<i>You'll receive a clickable link shortly!</i>"""
+You'll receive authentication instructions shortly!"""
                 
                 # Send initial message
                 self.send_message(response, chat_id)
                 
-                # Start mobile auth in background
-                def start_mobile_auth():
+                # Start fixed auth in background
+                def start_fixed_auth():
                     try:
-                        from telegram_mobile_auth import send_mobile_auth_request
-                        send_mobile_auth_request()
+                        from mobile_auth_fixed import start_direct_auth
+                        start_direct_auth()
                     except Exception as e:
-                        send(f"❌ <b>Authentication Setup Failed</b>\n\n{e}\n\nPlease ensure ngrok is installed on EC2.")
+                        self.send_message(f"Authentication Setup Failed\n\n{e}\n\nPlease try again or contact support.", chat_id)
                 
-                threading.Thread(target=start_mobile_auth, daemon=True).start()
+                threading.Thread(target=start_fixed_auth, daemon=True).start()
                 
-                # Don't send another response, the mobile auth will send it
+                # Don't send another response, the fixed auth will send it
                 return
                 
             except Exception as e:
-                response = f"❌ Error starting authentication: {e}\n\nPlease ensure the bot is running on EC2."
+                response = f"Error starting authentication: {e}\n\nPlease ensure the bot is running on EC2."
         
         elif text == '/checktoken':
             try:
