@@ -1,0 +1,17 @@
+{
+  "enabled": false,
+  "bot_token": "",
+  "chat_id": "",
+  "alerts": {
+    "trades": true,
+    "errors": true,
+    "daily_summary": true,
+    "system_status": true,
+    "emergency": true
+  },
+  "quiet_hours": {
+    "enabled": false,
+    "start": "22:00",
+    "end": "08:00"
+  }
+}

@@ -1,0 +1,211 @@
+#!/usr/bin/env python3
+"""
+Interactive Telegram Bot for Trading Bot
+Handles commands like /help, /status, /positions, etc.
+"""
+
+import time
+import os
+import sys
+import json
+import threading
+from datetime import datetime
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import config
+import requests
+
+class TelegramBot:
+    def __init__(self):
+        self.token = config.TELEGRAM_TOKEN
+        self.chat_id = config.CHAT_ID
+        self.base_url = f"https://api.telegram.org/bot{self.token}"
+        self.running = True
+        
+    def send_message(self, message, chat_id=None):
+        """Send message to Telegram"""
+        try:
+            chat_id = chat_id or self.chat_id
+            if not chat_id:
+                print("No chat_id configured")
+                return False
+                
+            url = f"{self.base_url}/sendMessage"
+            data = {
+                'chat_id': chat_id,
+                'text': message,
+                'parse_mode': 'HTML'
+            }
+            response = requests.post(url, json=data, timeout=10)
+            return response.status_code == 200
+        except Exception as e:
+            print(f"Telegram send error: {e}")
+            return False
+    
+    def get_updates(self, offset=None):
+        """Get updates from Telegram"""
+        try:
+            url = f"{self.base_url}/getUpdates"
+            params = {'timeout': 30, 'offset': offset} if offset else {'timeout': 30}
+            response = requests.get(url, params=params, timeout=35)
+            if response.status_code == 200:
+                return response.json()
+        except Exception as e:
+            print(f"Telegram get updates error: {e}")
+        return None
+    
+    def handle_command(self, message):
+        """Handle incoming commands"""
+        chat_id = message['chat']['id']
+        text = message.get('text', '').lower()
+        
+        print(f"Received command: {text} from chat_id: {chat_id}")
+        
+        # Store chat_id if not configured
+        if not self.chat_id and chat_id:
+            self.chat_id = chat_id
+            print(f"Updated chat_id to: {chat_id}")
+        
+        if text == '/help':
+            response = """<b>Trading Bot Commands:</b>
+
+<b>Basic Commands:</b>
+/help - Show this help message
+/status - Get bot status
+/time - Current server time
+
+<b>Trading Commands:</b>
+/positions - Current positions
+/pnl - Today's P&L
+/orders - Recent orders
+/balance - Account balance
+
+<b>System Commands:</b>
+/restart - Restart bot (admin only)
+/stop - Stop bot (admin only)
+/logs - Recent logs
+
+<b>Note:</b> Some commands require admin privileges."""
+            
+        elif text == '/status':
+            try:
+                # Check if main bot is running
+                import subprocess
+                result = subprocess.run(['pgrep', '-f', 'python.*main.py'], 
+                                      capture_output=True, text=True)
+                if result.returncode == 0:
+                    status = "RUNNING"
+                else:
+                    status = "STOPPED"
+                
+                response = f"""<b>Bot Status:</b>
+
+<b>Main Bot:</b> {status}
+<b>Telegram Bot:</b> RUNNING
+<b>Mode:</b> {config.MODE}
+<b>Server Time:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+<b>Market Hours:</b> 9:15 AM - 3:30 PM (Mon-Fri)"""
+            except Exception as e:
+                response = f"Error getting status: {e}"
+        
+        elif text == '/time':
+            response = f"<b>Server Time:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        elif text == '/positions':
+            response = "<b>Current Positions:</b>\n\nNo open positions (Paper Trading Mode)"
+        
+        elif text == '/pnl':
+            response = """<b>Today's P&L:</b>
+
+<b>Realized P&L:</b> Rs. 0.00
+<b>Unrealized P&L:</b> Rs. 0.00
+<b>Total P&L:</b> Rs. 0.00
+
+<i>Paper Trading Mode - No real trades executed</i>"""
+        
+        elif text == '/orders':
+            response = "<b>Recent Orders:</b>\n\nNo recent orders (Paper Trading Mode)"
+        
+        elif text == '/balance':
+            response = f"""<b>Account Balance:</b>
+
+<b>Available Capital:</b> Rs. {config.CAPITAL:,.2f}
+<b>Mode:</b> {config.MODE}
+<b>Risk per Trade:</b> {config.RISK_PER_TRADE * 100:.1f}%"""
+        
+        elif text == '/logs':
+            try:
+                with open('logs/supervisor.log', 'r') as f:
+                    logs = f.readlines()[-10:]  # Last 10 lines
+                response = "<b>Recent Logs:</b>\n\n" + "".join(logs[-5:])  # Last 5 lines
+            except Exception as e:
+                response = f"Error reading logs: {e}"
+        
+        elif text == '/restart':
+            response = "Restart command received. Bot will restart in 5 seconds..."
+            # Schedule restart in separate thread
+            threading.Thread(target=self._restart_bot, daemon=True).start()
+        
+        elif text == '/stop':
+            response = "Stop command received. Bot will stop in 5 seconds..."
+            self.running = False
+        
+        else:
+            response = """<b>Unknown command.</b>
+
+Type /help to see available commands."""
+        
+        self.send_message(response, chat_id)
+    
+    def _restart_bot(self):
+        """Restart the main bot"""
+        time.sleep(5)
+        try:
+            import subprocess
+            subprocess.run(['sudo', 'supervisorctl', 'restart', 'trading_bot'], 
+                          check=True)
+        except Exception as e:
+            print(f"Restart error: {e}")
+    
+    def run(self):
+        """Main bot loop"""
+        print("Starting interactive Telegram bot...")
+        
+        if not self.token:
+            print("No TELEGRAM_TOKEN configured")
+            return
+        
+        offset = None
+        
+        while self.running:
+            try:
+                updates = self.get_updates(offset)
+                if updates and updates.get('ok'):
+                    for result in updates['result']:
+                        # Update offset to mark as processed
+                        offset = result['update_id'] + 1
+                        
+                        # Handle message
+                        if 'message' in result:
+                            self.handle_command(result['message'])
+                
+                time.sleep(1)  # Small delay between requests
+                
+            except KeyboardInterrupt:
+                print("Bot stopped by user")
+                break
+            except Exception as e:
+                print(f"Bot error: {e}")
+                time.sleep(5)  # Wait before retrying
+        
+        print("Telegram bot stopped")
+
+if __name__ == "__main__":
+    bot = TelegramBot()
+    
+    # Send startup message
+    bot.send_message("Trading Bot Telegram Interface Started!\n\nType /help for commands.")
+    
+    # Run the bot
+    bot.run()

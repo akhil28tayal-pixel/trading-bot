@@ -1,0 +1,10 @@
+kiteconnect
+Flask
+requests
+websocket-client
+python-telegram-bot
+psutil
+pandas
+numpy
+matplotlib
+seaborn

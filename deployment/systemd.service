@@ -1,0 +1,28 @@
+[Unit]
+Description=Algo Trading Bot
+After=network.target
+
+[Service]
+Type=simple
+User=trader
+Group=trader
+WorkingDirectory=/home/trader/trading_bot
+Environment=PYTHONPATH=/home/trader/trading_bot
+ExecStart=/home/trader/trading_bot/.venv/bin/python main.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=1G
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/trader/trading_bot/logs /home/trader/trading_bot/token.json
+
+[Install]
+WantedBy=multi-user.target
