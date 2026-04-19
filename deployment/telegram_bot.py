@@ -81,13 +81,17 @@ class TelegramBot:
 /orders - Recent orders
 /balance - Account balance
 
+<b>Authentication:</b>
+/auth - Get Kite login link for authentication
+/checktoken - Check token validity
+
 <b>System Commands:</b>
 /logs - View recent log entries
 /logfiles - List available log files
 /restart - Restart bot (admin only)
 /stop - Stop bot (admin only)
 
-<b>Note:</b> Some commands require admin privileges."""
+<b>Note:</b> Some commands require admin privileges.
             
         elif text == '/status':
             try:
@@ -200,6 +204,80 @@ class TelegramBot:
                     
             except Exception as e:
                 response = f"Error listing log files: {e}"
+        
+        elif text == '/auth':
+            try:
+                # Import auth handler
+                sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                from telegram_auth_handler import generate_kite_login_link, start_auth_server
+                
+                # Start auth server in background
+                threading.Thread(target=start_auth_server, daemon=True).start()
+                time.sleep(1)  # Wait for server to start
+                
+                # Generate login link
+                login_url = generate_kite_login_link()
+                
+                response = f"""🔐 <b>Kite Authentication</b>
+
+Click the link below to authenticate:
+
+{login_url}
+
+<b>Steps:</b>
+1️⃣ Click the link
+2️⃣ Login to Zerodha Kite
+3️⃣ Authorize the application
+4️⃣ You'll be redirected automatically
+
+<b>Note:</b> Link valid for 10 minutes.
+
+<i>You'll receive a confirmation message after successful authentication.</i>"""
+                
+            except Exception as e:
+                response = f"Error generating auth link: {e}"
+        
+        elif text == '/checktoken':
+            try:
+                # Check token validity
+                sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                from telegram_auth_handler import check_token_validity
+                
+                is_valid, expiry, needs_auth = check_token_validity()
+                
+                if needs_auth:
+                    response = """⚠️ <b>Token Status: EXPIRED</b>
+
+Your Zerodha access token has expired or is missing.
+
+<b>Action Required:</b>
+Use /auth command to get authentication link.
+
+<i>Authentication is required before market opens (9:15 AM).</i>"""
+                else:
+                    if expiry:
+                        time_left = expiry - datetime.now()
+                        hours_left = time_left.total_seconds() / 3600
+                        
+                        response = f"""✅ <b>Token Status: VALID</b>
+
+Your Zerodha access token is active.
+
+<b>Token Details:</b>
+• Status: Active
+• Expires: {expiry.strftime('%Y-%m-%d %H:%M:%S')}
+• Time Left: {hours_left:.1f} hours
+
+<b>Bot is ready to trade!</b>"""
+                    else:
+                        response = """✅ <b>Token Status: VALID</b>
+
+Your Zerodha access token is active for today.
+
+<b>Bot is ready to trade!</b>"""
+                        
+            except Exception as e:
+                response = f"Error checking token: {e}"
         
         elif text == '/restart':
             response = "Restart command received. Bot will restart in 5 seconds..."
