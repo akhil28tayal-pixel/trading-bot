@@ -207,14 +207,15 @@ class TelegramBot:
         
         elif text == '/auth':
             try:
-                # Import fixed auth handler
+                # Import domain auth handler
                 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                 
-                # Trigger direct authentication
-                response = """Starting Mobile Authentication...
+                # Trigger domain-based authentication
+                response = """Starting Professional Authentication...
 
 Please wait while I set up the authentication server...
 
+Using domain: atcpa.co
 This will take about 5-10 seconds.
 
 You'll receive authentication instructions shortly!"""
@@ -222,17 +223,17 @@ You'll receive authentication instructions shortly!"""
                 # Send initial message
                 self.send_message(response, chat_id)
                 
-                # Start fixed auth in background
-                def start_fixed_auth():
+                # Start domain auth in background
+                def start_domain_auth():
                     try:
-                        from mobile_auth_fixed import start_direct_auth
-                        start_direct_auth()
+                        from mobile_auth_domain_port5000 import start_domain_auth
+                        start_domain_auth()
                     except Exception as e:
                         self.send_message(f"Authentication Setup Failed\n\n{e}\n\nPlease try again or contact support.", chat_id)
                 
-                threading.Thread(target=start_fixed_auth, daemon=True).start()
+                threading.Thread(target=start_domain_auth, daemon=True).start()
                 
-                # Don't send another response, the fixed auth will send it
+                # Don't send another response, the domain auth will send it
                 return
                 
             except Exception as e:
