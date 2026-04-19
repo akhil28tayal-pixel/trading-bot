@@ -207,15 +207,16 @@ class TelegramBot:
         
         elif text == '/auth':
             try:
-                # Import domain auth handler
+                # Import nginx proxy auth handler
                 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                 
-                # Trigger domain-based authentication
+                # Trigger nginx proxy authentication
                 response = """Starting Professional Authentication...
 
 Please wait while I set up the authentication server...
 
 Using domain: atcpa.co
+Setup: Nginx Proxy -> Flask (port 5001)
 This will take about 5-10 seconds.
 
 You'll receive authentication instructions shortly!"""
@@ -223,17 +224,17 @@ You'll receive authentication instructions shortly!"""
                 # Send initial message
                 self.send_message(response, chat_id)
                 
-                # Start domain auth in background
-                def start_domain_auth():
+                # Start nginx proxy auth in background
+                def start_nginx_auth():
                     try:
-                        from mobile_auth_domain_port5000 import start_domain_auth
+                        from mobile_auth_domain_nginx import start_domain_auth
                         start_domain_auth()
                     except Exception as e:
                         self.send_message(f"Authentication Setup Failed\n\n{e}\n\nPlease try again or contact support.", chat_id)
                 
-                threading.Thread(target=start_domain_auth, daemon=True).start()
+                threading.Thread(target=start_nginx_auth, daemon=True).start()
                 
-                # Don't send another response, the domain auth will send it
+                # Don't send another response, the nginx auth will send it
                 return
                 
             except Exception as e:
