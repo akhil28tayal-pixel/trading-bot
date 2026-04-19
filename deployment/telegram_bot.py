@@ -209,30 +209,41 @@ class TelegramBot:
             try:
                 # Import auth handler
                 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                from telegram_auth_handler import generate_kite_login_link, start_auth_server
-                
-                # Start auth server in background
-                threading.Thread(target=start_auth_server, daemon=True).start()
-                time.sleep(1)  # Wait for server to start
+                from telegram_auth_handler import generate_kite_login_link
                 
                 # Generate login link
                 login_url = generate_kite_login_link()
                 
                 response = f"""🔐 <b>Kite Authentication</b>
 
-Click the link below to authenticate:
+<b>⚠️ SETUP REQUIRED (Kite needs HTTPS)</b>
 
+Since Kite requires HTTPS and EC2 doesn't have SSL, use SSH port forwarding:
+
+<b>Step 1: Open Terminal on Your Computer</b>
+<code>ssh -i ~/Downloads/trading-bot.pem -L 5001:localhost:5001 trader@ec2-13-211-47-122.ap-southeast-2.compute.amazonaws.com</code>
+
+<b>Step 2: In SSH Session, Run:</b>
+<code>cd /home/trader/trading_bot
+source .venv/bin/activate
+python3 auth.py</code>
+
+<b>Step 3: Login to Kite</b>
+Browser will open automatically, or use:
 {login_url}
 
-<b>Steps:</b>
-1️⃣ Click the link
-2️⃣ Login to Zerodha Kite
-3️⃣ Authorize the application
-4️⃣ You'll be redirected automatically
+<b>Step 4: Complete Login</b>
+• Enter password and 2FA
+• Authorize the app
+• Redirects to localhost:5001 (forwarded to EC2)
+• Token saved automatically
 
-<b>Note:</b> Link valid for 10 minutes.
+<b>Important:</b>
+• Kite redirect URL must be: <code>http://127.0.0.1:5001/</code>
+• Keep SSH session open during auth
+• Link valid for 10 minutes
 
-<i>You'll receive a confirmation message after successful authentication.</i>"""
+<i>You'll receive confirmation after success!</i>"""
                 
             except Exception as e:
                 response = f"Error generating auth link: {e}"
