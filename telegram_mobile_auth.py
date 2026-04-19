@@ -28,11 +28,42 @@ ngrok_url = None
 ngrok_process = None
 
 
+def kill_port_5001():
+    """Kill any process using port 5001"""
+    try:
+        # Find process using port 5001
+        result = subprocess.run(
+            ['lsof', '-t', '-i:5001'],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.stdout.strip():
+            pids = result.stdout.strip().split('\n')
+            for pid in pids:
+                print(f"🛑 Killing process {pid} on port 5001...")
+                subprocess.run(['kill', '-9', pid], check=False)
+            time.sleep(1)
+            print("✅ Port 5001 freed")
+    except Exception as e:
+        print(f"Warning: Could not check port 5001: {e}")
+
+
 def start_ngrok():
     """Start ngrok tunnel and return public HTTPS URL"""
     global ngrok_process, ngrok_url
     
     print("🚀 Starting ngrok tunnel...")
+    
+    # Kill any existing ngrok processes
+    try:
+        subprocess.run(['pkill', '-f', 'ngrok'], check=False)
+        time.sleep(1)
+    except:
+        pass
+    
+    # Free up port 5001
+    kill_port_5001()
     
     # Start ngrok
     try:
@@ -43,23 +74,28 @@ def start_ngrok():
         )
         
         # Wait for ngrok to start
-        time.sleep(3)
+        time.sleep(4)
         
         # Get public URL from ngrok API
-        response = requests.get('http://localhost:4040/api/tunnels', timeout=5)
-        data = response.json()
-        
-        if data.get('tunnels'):
-            ngrok_url = data['tunnels'][0]['public_url']
+        try:
+            response = requests.get('http://localhost:4040/api/tunnels', timeout=5)
+            data = response.json()
             
-            # Ensure it's HTTPS
-            if ngrok_url.startswith('http://'):
-                ngrok_url = ngrok_url.replace('http://', 'https://')
-            
-            print(f"✅ ngrok tunnel created: {ngrok_url}")
-            return ngrok_url
-        else:
-            print("❌ No tunnels found")
+            if data.get('tunnels'):
+                ngrok_url = data['tunnels'][0]['public_url']
+                
+                # Ensure it's HTTPS
+                if ngrok_url.startswith('http://'):
+                    ngrok_url = ngrok_url.replace('http://', 'https://')
+                
+                print(f"✅ ngrok tunnel created: {ngrok_url}")
+                return ngrok_url
+            else:
+                print("❌ No tunnels found")
+                return None
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Could not get ngrok URL: {e}")
+            print("   ngrok may not have started properly")
             return None
             
     except Exception as e:
@@ -354,7 +390,21 @@ You can check status anytime with /status command.
 def start_flask_server():
     """Start Flask authentication server"""
     print("🔐 Starting Flask server on port 5001...")
-    app.run(host="0.0.0.0", port=5001, use_reloader=False)
+    
+    # Ensure port is free
+    kill_port_5001()
+    time.sleep(1)
+    
+    try:
+        app.run(host="0.0.0.0", port=5001, use_reloader=False)
+    except OSError as e:
+        if "Address already in use" in str(e):
+            print("❌ Port 5001 still in use, trying to free it...")
+            kill_port_5001()
+            time.sleep(2)
+            app.run(host="0.0.0.0", port=5001, use_reloader=False)
+        else:
+            raise
 
 
 if __name__ == "__main__":
