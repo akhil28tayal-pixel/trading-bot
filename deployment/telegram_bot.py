@@ -82,9 +82,10 @@ class TelegramBot:
 /balance - Account balance
 
 <b>System Commands:</b>
+/logs - View recent log entries
+/logfiles - List available log files
 /restart - Restart bot (admin only)
 /stop - Stop bot (admin only)
-/logs - Recent logs
 
 <b>Note:</b> Some commands require admin privileges."""
             
@@ -136,11 +137,69 @@ class TelegramBot:
         
         elif text == '/logs':
             try:
-                with open('logs/supervisor.log', 'r') as f:
-                    logs = f.readlines()[-10:]  # Last 10 lines
-                response = "<b>Recent Logs:</b>\n\n" + "".join(logs[-5:])  # Last 5 lines
+                # Get project root directory
+                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                log_files = [
+                    os.path.join(project_root, 'logs', 'main.log'),
+                    os.path.join(project_root, 'logs', 'telegram_bot.log'),
+                    os.path.join(project_root, 'bot.log')
+                ]
+                
+                response = "<b>Recent Logs:</b>\n\n"
+                logs_found = False
+                
+                for log_file in log_files:
+                    if os.path.exists(log_file):
+                        logs_found = True
+                        log_name = os.path.basename(log_file)
+                        try:
+                            with open(log_file, 'r') as f:
+                                lines = f.readlines()
+                                last_lines = lines[-5:] if len(lines) >= 5 else lines
+                                response += f"\n<b>{log_name}:</b>\n"
+                                response += "".join(last_lines)[:500]  # Limit to 500 chars per file
+                                response += "\n"
+                        except Exception as e:
+                            response += f"\n<b>{log_name}:</b> Error reading - {e}\n"
+                
+                if not logs_found:
+                    response += "No log files found. Logs will be created when the bot runs."
+                    
             except Exception as e:
                 response = f"Error reading logs: {e}"
+        
+        elif text == '/logfiles':
+            try:
+                # Get project root directory
+                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                log_locations = [
+                    os.path.join(project_root, 'logs'),
+                    project_root
+                ]
+                
+                response = "<b>Available Log Files:</b>\n\n"
+                files_found = False
+                
+                for location in log_locations:
+                    if os.path.exists(location):
+                        for file in os.listdir(location):
+                            if file.endswith('.log'):
+                                files_found = True
+                                file_path = os.path.join(location, file)
+                                size = os.path.getsize(file_path)
+                                size_kb = size / 1024
+                                mtime = datetime.fromtimestamp(os.path.getmtime(file_path))
+                                
+                                response += f"📄 <b>{file}</b>\n"
+                                response += f"   Size: {size_kb:.1f} KB\n"
+                                response += f"   Modified: {mtime.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                
+                if not files_found:
+                    response += "No log files found yet.\n"
+                    response += "Logs will be created when the bot runs."
+                    
+            except Exception as e:
+                response = f"Error listing log files: {e}"
         
         elif text == '/restart':
             response = "Restart command received. Bot will restart in 5 seconds..."
