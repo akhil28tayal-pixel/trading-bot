@@ -91,7 +91,7 @@ class TelegramBot:
 /restart - Restart bot (admin only)
 /stop - Stop bot (admin only)
 
-<b>Note:</b> Some commands require admin privileges.
+<b>Note:</b> Some commands require admin privileges."""
             
         elif text == '/status':
             try:
